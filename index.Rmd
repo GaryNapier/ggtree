@@ -1,0 +1,101 @@
+---
+title: "ggtree basis"
+output: html_document
+---
+
+### [Install ggtree link](https://bioconductor.org/packages/release/bioc/html/ggtree.html#:~:text='ggtree'%20extends%20the%20'ggplot2,structures%20with%20their%20annotation%20data.)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Libraries:
+
+```{r , echo=T, out.width = "1500px", warning = F, message = F}
+
+library(ggplot2) # ggtree is based on ggplot and used a lot of its code
+library(ggtree) # ggtree
+library(treeio) # Loads up Beast trees
+library(ggnewscale) # For adding new heatmaps (annotations)
+
+```
+
+
+
+```{r , echo=FALSE, out.width = "1500px", warning = F, message = F}
+
+# setwd("~/Documents/ggtrees")
+
+```
+
+
+
+```{r , echo=FALSE, out.width = "1500px", warning = F, message = F}
+
+# Functions
+
+log10_ceiling <- function(x) {
+  10^(ceiling(log10(x)))
+}
+
+```
+
+```{r , echo=FALSE, out.width = "1500px", warning = F, message = F}
+
+# Paths ----
+
+# metadata_path <- "../pakistan/metadata/"
+# plots_path <- "../plots/"
+# db_path <- "../../pipeline/db/"
+# dist_path <- "../dist_and_pca/"
+# beast_results_path <- "../beast_results/"
+
+```
+
+
+```{r , echo=FALSE, out.width = "1500px", warning = F, message = F}
+
+# Files ----
+
+# # Metadata
+# metadata_file <- paste0(metadata_path, "pakistan_metadata.csv")
+# historical_metadata_file <- paste0(metadata_path, "historical_metadata.csv") # http://www.pasteur-guadeloupe.fr/
+# lineage_conversion_file <- paste0(db_path, "lineage_conversions.txt")
+# 
+# tree_all_samps_file <- paste0(plots_path, "PAKISTAN_ALL.tree.png")
+# dist_file <- paste0(dist_path, "PAKISTAN_ALL.dist.dist")
+# dist_id_file <- paste0(dist_path, "PAKISTAN_ALL.dist.dist.id")
+# # Beast
+# mcc_tree_file <- paste0(beast_results_path, "PAKISTAN_ALL.mcc.tree")
+# beast_log_file <- paste0(beast_results_path, "PAKISTAN_ALL.log")
+# beast_clusters_file <- paste0(metadata_path, "PAKISTAN_ALL.clusters.csv")
+# # Other
+# methods_file <- paste0(metadata_path, "pakistan_methods.tsv")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
