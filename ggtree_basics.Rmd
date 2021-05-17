@@ -1,0 +1,36 @@
+---
+title: "ggtree basis"
+output: html_document
+---
+
+### [Install ggtree link](https://bioconductor.org/packages/release/bioc/html/ggtree.html#:~:text='ggtree'%20extends%20the%20'ggplot2,structures%20with%20their%20annotation%20data.)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Libraries:
+
+```{r , echo=T, out.width = "1500px", warning = F, message = F}
+
+library(ggplot2) # ggtree is based on ggplot and used a lot of its code
+library(ggtree) # ggtree
+library(treeio) # Loads up Beast trees
+library(ggnewscale) # For adding new heatmaps (annotations)
+
+```
+
+
+
+```{r , echo=FALSE, out.width = "1500px", warning = F, message = F}
+
+
+```
+
+
+
+```{r , echo=FALSE, out.width = "1500px", warning = F, message = F}
+
+
+```
+
