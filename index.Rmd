@@ -61,10 +61,6 @@ beast_clusters_file <- paste0(metadata_path, "PAKISTAN_ALL.clusters.csv")
 
 ```{r , echo=T, out.width = "1500px", warning = F, message = F}
 
-# Read in data ----
-
-# mcc_tree_ape <- ape::read.nexus(mcc_tree_file)
-
 # Read in beast tree with treeio package
 mcc_tree <- treeio::read.beast(mcc_tree_file)
 metadata <- read.csv(metadata_file)
