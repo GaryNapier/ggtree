@@ -9,11 +9,16 @@ See https://github.com/GaryNapier/ggtree for this markdown code and data
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+rm(list = ls())
+
+setwd("~/Documents/ggtree/")
+
 ```
 
 ### Libraries:
 
-```{r , echo=T, out.width = "1500px", warning = F, message = F}
+```{r libraries, echo=T, out.width = "1500px", warning = F, message = F}
 
 library(ggplot2) # ggtree is based on ggplot and uses a lot of its code
 library(ggtree) # ggtree
@@ -25,7 +30,7 @@ library(gplots) # Also for colours
 ```
 
 
-```{r , echo=FALSE, out.width = "1500px", warning = F, message = F}
+```{r functions, echo=FALSE, out.width = "1500px", warning = F, message = F}
 
 # Functions ----
 
@@ -35,17 +40,19 @@ log10_ceiling <- function(x) {
 
 ```
 
-```{r , echo=FALSE, out.width = "1500px", warning = F, message = F}
+```{r paths, echo=FALSE, out.width = "1500px", warning = F, message = F}
 
 # Paths ----
 
 metadata_path <- "metadata/"
 plots_path <- "plots/"
 beast_results_path <- "beast_results/"
+newick_path <- "newick/"
+gwas_results_path <- "gwas_results/"
 
 ```
 
-```{r , echo=FALSE, out.width = "1500px", warning = F, message = F}
+```{r files, echo=FALSE, out.width = "1500px", warning = F, message = F}
 
 # Files ----
 
@@ -54,17 +61,24 @@ metadata_file <- paste0(metadata_path, "pakistan_metadata.csv")
 # Beast
 mcc_tree_file <- paste0(beast_results_path, "PAKISTAN_ALL.mcc.tree")
 beast_clusters_file <- paste0(metadata_path, "PAKISTAN_ALL.clusters.csv")
+# Normal trees
+tree_all_samps_newick_file <- paste0(newick_path, "PAKISTAN_ALL.filt.val.gt.g.snps.fa.treefile")
+# GWAS
+gwas_results_file <- paste0(gwas_results_path, "gwas_samples_mutations.txt")
+mutations_tree_file <- paste0(plots_path, "mutations_tree.png")
 
 ```
 
 ### Read in files
 
-```{r , echo=T, out.width = "1500px", warning = F, message = F}
+```{r read-in-files, echo=T, out.width = "1500px", warning = F, message = F}
 
 # Read in beast tree with treeio package
 mcc_tree <- treeio::read.beast(mcc_tree_file)
 metadata <- read.csv(metadata_file)
 beast_clusters <- read.csv(beast_clusters_file, header = F, col.names = c("cluster", "id"))
+mutations <- read.delim(gwas_results_file, header = T)
+tree_all_samps <- read.newick(tree_all_samps_newick_file)
 
 ```
 
@@ -588,6 +602,320 @@ for(i in seq(clusters_split)){
 ```
 
 
+#### Advanced
+
+Say we want to see where some mutations lie on a tree. These mutations are within a certain number of genes, so we can just do one heatmap strip per gene, as we've done with lineage and drug resistance above.
+
+However, some samples have more than one mutation per gene. We could make a new strip, one for each mutation, but the data are rather sparse and we want it to be clear that the mutations are within their respective genes. 
+
+Here's a look at the mutations data:
+
+```{r gwas-mutations-data, echo=T, out.width = "1500px", warning = F, message = F}
+
+head(mutations)
+
+```
+
+There's one sample per mutation, and that mutation belongs to a gene
+
+Hoever, some samples have more than one mutation per gene:
+
+```{r gwas-mutations-data-overlaps, echo=T, out.width = "1500px", warning = F, message = F}
+
+x <- mutations[mutations["gene"] == "proX", ]
+
+x <- x[duplicated(x$wgs_id) | duplicated(x$wgs_id, fromLast = T), ]
+
+head(x[order(x$wgs_id),])
+
+```
+
+Here for example ERR2510252 has two mutations on proX gene. 
+
+To represent this we can split each heatmap strip into sub-strips for each gene. 
+
+Here is the final plot, just to make clear what it will look like. 
+
+The proX and Rv2307B genes have been split into sub-strips.
+
+```{r mutations-tree-png, echo=T, out.width = "1500px", warning = F, message = F}
+
+knitr::include_graphics(mutations_tree_file)
+
+```
+
+First we have to wrangle the data to get it into the right format. 
+
+The genes that do (proX and Rv2307B) and don't (murA, nusG, wag31) have overlaps will have to be wrangled differently. So it's best to split the data by genes, make a list, and loop over the list, applying different rules to the two types of data.
+
+Now we have a dataframe of each gene in a list:
+
+```{r mutations-wrangling-split, echo=T, out.width = "1500px", warning = F, message = F}
+
+# Split on gene
+mutations_split <- split(mutations, mutations$gene)
+
+lapply(mutations_split, head)
+
+```
+
+While the data in in this format, the colours can easily be defined, so do this now.
+
+```{r mutations-colours, echo=T, out.width = "1500px", warning = F, message = F}
+
+# ------------------
+# | Define colours |
+# ------------------
+mutations_cols <- lapply(mutations_split, function(x){
+  rainbow(length(unique(x$mutation)))
+})
+
+# Make the NAs white and assign names
+# n.b. this is done in a loop rather than lapply(). For some reason it can't be easily done in lapply()
+for(i in seq(mutations_cols)){
+  mutations_cols[[i]][length(mutations_cols[[i]])+1] <- "#FFFFFF"
+}
+
+for(i in seq(mutations_cols)){
+  names(mutations_cols[[i]]) <- c(unique(mutations_split[[i]]$mutation), NA)
+}
+
+```
+
+...now continue the wrangling...
+
+```{r gwas-genes-mutations-tree, echo=T, out.width = "1500px", warning = F, message = F}
+
+# ----------------------
+# | Continue wrangling |
+# ----------------------
+
+# Get which lists have overlappling mutations/samples
+which_in_list_overlap <- vector()
+for(i in seq(mutations_split)){
+  if(any(duplicated(mutations_split[[i]]$wgs_id))){
+    which_in_list_overlap[i] <- i
+  }
+}
+# Remove NA
+which_in_list_overlap <- which_in_list_overlap[!(is.na(which_in_list_overlap))]
+
+which_in_list_overlap
+
+# Make a pivot of the dataframes where there are samples with more than one mutation,
+# where each col is a mutation - if the sample has the mutation, value is the mutation and NA if the
+# sample does not have it.
+for(i in seq(mutations_split)){
+  if(i %in% which_in_list_overlap){
+    mutations_split[[i]] <- reshape2::dcast(mutations_split[[i]], wgs_id ~ mutation, value.var = "mutation")
+  }
+}
+
+lapply(mutations_split, head)
+
+# Clean up/wrangle
+for(i in seq(mutations_split)){
+  # Merge in the rest of the samples in the tree - all of the rest will be NA for the gene and mutation
+  mutations_split[[i]] <- merge(metadata["wgs_id"], mutations_split[[i]],
+                                by = "wgs_id", all.x = T, sort = F)
+  # Convert the rownames the IDs to match to the tree, as with the lineage and DR data above
+  row.names(mutations_split[[i]]) <- mutations_split[[i]]$wgs_id
+  # Drop the ID column and the gene column
+  mutations_split[[i]] <- mutations_split[[i]][!(names(mutations_split[[i]]) %in% c("wgs_id", "gene"))]
+  # Change the column names of the mutations column from 'mutation' to the name of the gene (names(mutations_split[i]))
+  # If the dataframe is one of the 'overlap' genes, then the columns have to be named uniquely or ggtree throws and error
+  if(i %in% which_in_list_overlap){
+    colnames(mutations_split[[i]]) <- paste0(names(mutations_split[i]), "_", 1:ncol(mutations_split[[i]]))
+  }else{
+    colnames(mutations_split[[i]]) <- names(mutations_split[i])
+  }
+}
+
+lapply(mutations_split, head)
+
+
+```
+
+Now plot the data as heatmap strips.
+
+For the 'overlap' genes (proX and Rv2307B) - because we have one column for each mutation, the 'substrips' will automatically be created. 
+
+```{r gwas-genes-mutations-tree, echo=T, out.width = "1500px", warning = F, message = F}
+
+# -----
+# PLOT
+# -----
+
+# Setup
+
+tree_all_samps <- midpoint.root(tree_all_samps)
+n_samps <- length(tree_all_samps$tip.label)
+width <- 0.05
+font_sz <- 3
+line_sz <- 0.25
+angle <- 45
+y_lim <- c(-10, n_samps + (n_samps * 0.1))
+legend_spec <- theme(legend.title = element_text(size = 9),
+                     legend.text = element_text(size = 7),
+                     legend.key.size = unit(0.3, "cm"))
+
+# Make basic tree
+ggtree_all_samps <- ggtree(tree_all_samps, size = line_sz) +
+coord_cartesian(ylim = y_lim)
+
+
+# Add the mutations data
+offset <- 0
+y_annotate <- n_samps+12
+mutations_tree <- ggtree_all_samps
+increase_offset_by <- 0.0013
+for(i in seq(mutations_split)){
+# for(i in 1:2){
+
+gene <- names(mutations_cols[i])
+mutations_tree <- gheatmap(mutations_tree, mutations_split[[i]],
+         width = width,
+         offset = offset,
+         color = NULL,
+         colnames_position = "top",
+         colnames_angle = angle,
+         colnames_offset_y = 1,
+         hjust = 0,
+         font.size = 3,
+         colnames = F) +
+  # annotate("text", x = 0.027, y = y_annotate, size = font_sz, angle = angle, label = gene) +
+  scale_fill_manual(values = mutations_cols[[i]], breaks = names(mutations_cols[[i]]) ) +
+  labs(fill = gene) +
+  legend_spec
+
+mutations_tree <- mutations_tree + ggnewscale::new_scale_fill()
+
+offset <- offset + increase_offset_by
+
+}
+
+mutations_tree
+
+
+
+
+
+
+
+
+offset_start <- 0
+y_annotate <- n_samps+12
+increase_offset_by <- 0.0013
+# for(i in seq(mutations_split)){
+i <- 1
+mutation <- names(mutations_cols[i])
+mutations_tree <- ggtree_all_samps
+mutations_tree <- gheatmap(mutations_tree, mutations_split[[i]],
+         width = width,
+         offset = offset_start,
+         color = NULL,
+         colnames_position = "top",
+         colnames_angle = angle,
+         colnames_offset_y = 1,
+         hjust = 0,
+         font.size = 3,
+         colnames = F) +
+  # annotate("text", x = 0.027, y = y_annotate, size = font_sz, angle = angle, label = mutation) +
+  scale_fill_manual(values = mutations_cols[[i]], breaks = names(mutations_cols[[i]]) ) +
+  labs(fill = mutation) +
+  legend_spec
+
+mutations_tree <- mutations_tree + ggnewscale::new_scale_fill()
+ # offset <- offset+0.0035
+# }
+
+offset <- offset + increase_offset_by
+i <- 2
+mutation <- names(mutations_cols[i])
+mutations_tree <- gheatmap(mutations_tree, mutations_split[[i]],
+         width = width,
+         offset = offset,
+         color = NULL,
+         colnames_position = "top",
+         colnames_angle = angle,
+         colnames_offset_y = 1,
+         hjust = 0,
+         font.size = 3,
+         colnames = F) +
+  # annotate("text", x = 0.0285, y = y_annotate, size = font_sz, angle = angle, label = mutation) +
+  scale_fill_manual(values = mutations_cols[[i]], breaks = names(mutations_cols[[i]]) ) +
+  labs(fill = mutation) +
+  legend_spec
+
+mutations_tree <- mutations_tree + ggnewscale::new_scale_fill()
+
+# offset <- offset+offset_start+0.0005
+# i <- 3
+# mutation <- names(mutations_cols[i])
+# trans_tree <- gheatmap(trans_tree, mutations_split[[i]],
+#          width = width,
+#          offset = offset,
+#          color = NULL,
+#          colnames_position = "top",
+#          colnames_angle = angle,
+#          colnames_offset_y = 1,
+#          hjust = 0,
+#          font.size = 3,
+#          colnames = F) +
+#   annotate("text", x = 0.0295, y = y_annotate, size = font_sz, angle = angle, label = mutation) +
+#   scale_fill_manual(values = mutations_cols[[i]], breaks = names(mutations_cols[[i]]) ) +
+#   labs(fill = mutation) +
+#   legend_spec
+# 
+# trans_tree <- trans_tree + ggnewscale::new_scale_fill()
+# 
+# offset <- offset+offset_start
+# i <- 4
+# mutation <- names(mutations_cols[i])
+# trans_tree <- gheatmap(trans_tree, mutations_split[[i]],
+#          width = width,
+#          offset = offset,
+#          color = NULL,
+#          colnames_position = "top",
+#          colnames_angle = angle,
+#          colnames_offset_y = 1,
+#          hjust = 0,
+#          font.size = 3,
+#          colnames = F) +
+#   annotate("text", x = 0.0312, y = y_annotate+6, size = font_sz, angle = angle, label = mutation) +
+#   scale_fill_manual(values = mutations_cols[[i]], breaks = names(mutations_cols[[i]]) ) +
+#   labs(fill = mutation) +
+#   legend_spec
+# 
+# trans_tree <- trans_tree + ggnewscale::new_scale_fill()
+# 
+# offset <- offset+offset_start-0.0005
+# i <- 5
+# mutation <- names(mutations_cols[i])
+# trans_tree <- gheatmap(trans_tree, mutations_split[[i]],
+#          width = width,
+#          offset = offset,
+#          color = NULL,
+#          colnames_position = "top",
+#          colnames_angle = angle,
+#          colnames_offset_y = 1,
+#          hjust = 0,
+#          font.size = 3,
+#          colnames = F) +
+#   annotate("text", x = 0.0323, y = y_annotate, size = font_sz, angle = angle, label = mutation) +
+#   scale_fill_manual(values = mutations_cols[[i]], breaks = names(mutations_cols[[i]]) ) +
+#   labs(fill = mutation) +
+#   legend_spec
+# 
+# trans_tree <- trans_tree + ggnewscale::new_scale_fill()
+# 
+# trans_tree
+
+png(filename = "../plots/mutations_tree.png", width = 2500, height = 2000, res = 300)
+trans_tree
+dev.off()
+
+```
 
 
 
