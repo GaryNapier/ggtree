@@ -26,6 +26,9 @@ library(treeio) # Loads up Beast trees
 library(ggnewscale) # For adding new heatmaps (annotations)
 library(scales) # For colours
 library(gplots) # Also for colours
+library(phytools) # Midpoint root
+library(dplyr)
+library(tidyr)
 
 ```
 
@@ -748,7 +751,7 @@ For the 'overlap' genes (proX and Rv2307B) - because we have one column for each
 
 # Setup
 
-tree_all_samps <- midpoint.root(tree_all_samps)
+tree_all_samps <- phytools::midpoint.root(tree_all_samps)
 n_samps <- length(tree_all_samps$tip.label)
 width <- 0.05
 font_sz <- 3
@@ -766,38 +769,57 @@ coord_cartesian(ylim = y_lim)
 
 # Add the mutations data
 offset <- 0
-y_annotate <- n_samps+12
-mutations_tree <- ggtree_all_samps
-increase_offset_by <- 0.0013
+y_annotate <- n_samps+15
+mutations_tree <- ggtree_all_samps # Rename so the loop works (otherwise will just keep plotting the first tree)
+increase_offset_by <- 0.0014
 for(i in seq(mutations_split)){
-# for(i in 1:2){
+# for(i in 1:3){
 
-gene <- names(mutations_cols[i])
-mutations_tree <- gheatmap(mutations_tree, mutations_split[[i]],
-         width = width,
-         offset = offset,
-         color = NULL,
-         colnames_position = "top",
-         colnames_angle = angle,
-         colnames_offset_y = 1,
-         hjust = 0,
-         font.size = 3,
-         colnames = F) +
-  # annotate("text", x = 0.027, y = y_annotate, size = font_sz, angle = angle, label = gene) +
-  scale_fill_manual(values = mutations_cols[[i]], breaks = names(mutations_cols[[i]]) ) +
-  labs(fill = gene) +
-  legend_spec
+  gene <- names(mutations_cols[i])
+  # mutations_tree <- gheatmap(mutations_tree, mutations_split[[i]],
+  #          width = width,
+  #          offset = offset,
+  #          color = NULL,
+  #          colnames_position = "top",
+  #          colnames_angle = angle,
+  #          colnames_offset_y = 1,
+  #          hjust = 0,
+  #          font.size = 3,
+  #          colnames = T) +
+  #   # annotate("text", x = 0.027, y = y_annotate, size = font_sz, angle = angle, label = gene) +
+  #   scale_fill_manual(values = mutations_cols[[i]], breaks = names(mutations_cols[[i]]) ) +
+  #   # scale_x_discrete(expand = c(1,0)) +
+  #   labs(fill = gene) +
+  #   legend_spec
+  
+  pg <- ggplot_build(mutations_tree)
+  pg <- pg$data[[(i * 2) - 1]]
+  
+  x_pos <- max(unique(pg$x))
 
-mutations_tree <- mutations_tree + ggnewscale::new_scale_fill()
+  mutations_tree <- gheatmap_custom(mutations_tree, mutations_split[[i]], pg,
+           width = width,
+           offset = offset,
+           color = NULL,
+           colnames_position = "top",
+           colnames_angle = angle,
+           colnames_offset_y = 1,
+           hjust = 0,
+           font.size = 3,
+           colnames = F) +
+    annotate("text", x = x_pos, y = y_annotate, size = font_sz, angle = angle, label = gene) +
+    scale_fill_manual(values = mutations_cols[[i]], breaks = names(mutations_cols[[i]]) ) +
+    # scale_x_discrete(expand = c(1,0)) +
+    labs(fill = gene) +
+    legend_spec
 
-offset <- offset + increase_offset_by
+  mutations_tree <- mutations_tree + ggnewscale::new_scale_fill()
+  
+  offset <- offset + increase_offset_by
 
 }
 
 mutations_tree
-
-
-
 
 
 
